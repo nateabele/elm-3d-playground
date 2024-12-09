@@ -1,15 +1,10 @@
 module Playground3D exposing
-    ( CastShadows
-    , Color
-    , Computer
-    , Keyboard
-    , Lighting(..)
-    , Mouse
-    , Number
+    ( withCamera
+    , withLighting
+    , withShadow
     , Scene
-    , Screen
     , Shape
-    , Time
+    , yellow
     , black
     , blue
     , box
@@ -26,10 +21,6 @@ module Playground3D exposing
     , darkRed
     , darkYellow
     , fromColor
-    , game
-    , gray
-    , green
-    , grey
     , group
     , lightBlue
     , lightBrown
@@ -41,6 +32,7 @@ module Playground3D exposing
     , lightPurple
     , lightRed
     , lightYellow
+    , Lighting(..)
     , move
     , moveBack
     , moveDown
@@ -56,21 +48,97 @@ module Playground3D exposing
     , red
     , rgb
     , rotate
+    , grey
+    , gray
+    , green
+    , game
     , scale
     , scene
+    , white
+    , Computer
+    , Keyboard
+    , Mouse
+    , Screen
+    , Time
+    , Number
     , sphere
     , toX
     , toXY
     , toY
-    , white
-    , withCamera
-    , withLighting
-    , withShadow
-    , yellow
     )
 
-import Angle exposing (Angle)
-import Axis3d
+{-| Contains most of the usual suspects from elm-playground, just 3D-ified.
+
+@docs withCamera
+@docs withLighting
+@docs withShadow
+@docs Scene
+@docs Shape
+@docs yellow
+@docs black
+@docs blue
+@docs box
+@docs brown
+@docs charcoal
+@docs darkBlue
+@docs darkBrown
+@docs darkCharcoal
+@docs darkGray
+@docs darkGreen
+@docs darkGrey
+@docs darkOrange
+@docs darkPurple
+@docs darkRed
+@docs darkYellow
+@docs fromColor
+@docs group
+@docs lightBlue
+@docs lightBrown
+@docs lightCharcoal
+@docs lightGray
+@docs lightGreen
+@docs lightGrey
+@docs lightOrange
+@docs lightPurple
+@docs lightRed
+@docs lightYellow
+@docs Lighting
+@docs move
+@docs moveBack
+@docs moveDown
+@docs moveForward
+@docs moveLeft
+@docs moveRight
+@docs moveUp
+@docs moveX
+@docs moveY
+@docs moveZ
+@docs orange
+@docs purple
+@docs red
+@docs rgb
+@docs rotate
+@docs grey
+@docs gray
+@docs green
+@docs game
+@docs scale
+@docs scene
+@docs white
+@docs Computer
+@docs Keyboard
+@docs Mouse
+@docs Screen
+@docs Time
+@docs Number
+@docs sphere
+@docs toX
+@docs toXY
+@docs toY
+
+-}
+
+import Angle
 import Block3d
 import Browser
 import Browser.Dom as Dom
@@ -80,11 +148,9 @@ import Color
 import Direction3d exposing (Direction3d)
 import Frame3d
 import Html
-import Html.Attributes as H
 import Json.Decode as D
 import Length exposing (Length)
-import Pixels exposing (Pixels)
-import Point2d exposing (coordinates)
+import Pixels
 import Point3d
 import Quantity exposing (Quantity(..))
 import Scene3d
@@ -95,7 +161,6 @@ import Svg exposing (..)
 import Svg.Attributes exposing (..)
 import Task
 import Time
-import Vector3d
 import Viewpoint3d
 
 
@@ -137,6 +202,8 @@ type alias Computer =
 --     }
 
 
+{-| Create a material from a color, that can be applied to a shape
+-}
 fromColor : Color -> Material coordinates { attributes | normals : () }
 fromColor color =
     Material.nonmetal
@@ -149,6 +216,8 @@ fromColor color =
 -- MOUSE
 
 
+{-| Information about the mouse
+-}
 type alias Mouse =
     { x : Number
     , y : Number
@@ -684,21 +753,36 @@ type Form
     | Group (List Shape)
 
 
+{-| Create a sphere
+-}
 sphere : Color -> Number -> Shape
 sphere color radius =
     Shape ( 0, 0, 0 ) 0 1 False (Sphere color radius)
 
 
+{-| Create a box, like a cube or other shape
+-}
 box : Color -> Number -> Number -> Number -> Shape
 box color width height depth =
     Shape ( 0, 0, 0 ) 0 1 False (Box color width height depth)
 
 
+{-| Group shapes together.
+
+    import Playground3D exposing (..)
+
+    main =
+        picture
+            [ group [ sphere red 10, sphere blue 10 ] ]
+
+-}
 group : List Shape -> Shape
 group shapes =
     Shape ( 0, 0, 0 ) 0 1 False (Group shapes)
 
 
+{-| Add a shadow to a shape.
+-}
 withShadow : Bool -> Shape -> Shape
 withShadow shadow (Shape coords a s _ f) =
     Shape coords a s shadow f
@@ -708,56 +792,78 @@ withShadow shadow (Shape coords a s _ f) =
 -- TRANSFORMS
 
 
+{-| Move a shape in one or more directions
+-}
 move : Number -> Number -> Number -> Shape -> Shape
 move dx dy dz (Shape ( x, y, z ) a s o f) =
     Shape ( x + dx, y + dy, z + dz ) a s o f
 
 
+{-| Move a shape up
+-}
 moveUp : Number -> Shape -> Shape
 moveUp =
     moveY
 
 
+{-| Move a shape down
+-}
 moveDown : Number -> Shape -> Shape
 moveDown dy (Shape ( x, y, z ) a s o f) =
     Shape ( x, y - dy, z ) a s o f
 
 
+{-| Move a shape left
+-}
 moveLeft : Number -> Shape -> Shape
 moveLeft dx (Shape ( x, y, z ) a s o f) =
     Shape ( x - dx, y, z ) a s o f
 
 
+{-| Move a shape right
+-}
 moveRight : Number -> Shape -> Shape
 moveRight =
     moveX
 
 
+{-| Move a shape forward
+-}
 moveForward : Number -> Shape -> Shape
 moveForward =
     moveZ
 
 
+{-| Move a shape back
+-}
 moveBack : Number -> Shape -> Shape
 moveBack dz (Shape ( x, y, z ) a s o f) =
     Shape ( x, y, z - dz ) a s o f
 
 
+{-| Move a shape left or right
+-}
 moveX : Number -> Shape -> Shape
 moveX dx (Shape ( x, y, z ) a s o f) =
     Shape ( x + dx, y, z ) a s o f
 
 
+{-| Move a shape up or down
+-}
 moveY : Number -> Shape -> Shape
 moveY dy (Shape ( x, y, z ) a s o f) =
     Shape ( x, y + dy, z ) a s o f
 
 
+{-| Move a shape forward or backward
+-}
 moveZ : Number -> Shape -> Shape
 moveZ dz (Shape ( x, y, z ) a s o f) =
     Shape ( x, y, z + dz ) a s o f
 
 
+{-| Scale a shape
+-}
 scale : Number -> Shape -> Shape
 scale ns (Shape coords a s o f) =
     Shape coords a (s * ns) o f
@@ -786,175 +892,204 @@ rotate da (Shape coords a s o f) =
 -- COLOR
 
 
-{-| -}
+{-| The color light yellow
+-}
 lightYellow : Color
 lightYellow =
     Color.lightYellow
 
 
-{-| -}
+{-| The color yellow
+-}
 yellow : Color
 yellow =
     Color.yellow
 
 
-{-| -}
+{-| The color dark yellow
+-}
 darkYellow : Color
 darkYellow =
     Color.darkYellow
 
 
-{-| -}
+{-| The color light orange
+-}
 lightOrange : Color
 lightOrange =
     Color.lightOrange
 
 
-{-| -}
+{-| The color orange
+-}
 orange : Color
 orange =
     Color.orange
 
 
-{-| -}
+{-| The color dark orange
+-}
 darkOrange : Color
 darkOrange =
     Color.darkOrange
 
 
-{-| -}
+{-| The color light brown
+-}
 lightBrown : Color
 lightBrown =
     Color.lightBrown
 
 
-{-| -}
+{-| The color brown
+-}
 brown : Color
 brown =
     Color.brown
 
 
-{-| -}
+{-| The color dark brown
+-}
 darkBrown : Color
 darkBrown =
     Color.darkBrown
 
 
-{-| -}
+{-| The color light green
+-}
 lightGreen : Color
 lightGreen =
     Color.lightGreen
 
 
-{-| -}
+{-| The color green
+-}
 green : Color
 green =
     Color.green
 
 
-{-| -}
+{-| The color dark green
+-}
 darkGreen : Color
 darkGreen =
     Color.darkGreen
 
 
-{-| -}
+{-| The color light blue
+-}
 lightBlue : Color
 lightBlue =
     Color.lightBlue
 
 
-{-| -}
+{-| The color blue
+-}
 blue : Color
 blue =
     Color.blue
 
 
-{-| -}
+{-| The color dark blue
+-}
 darkBlue : Color
 darkBlue =
     Color.darkBlue
 
 
-{-| -}
+{-| The color light purple
+-}
 lightPurple : Color
 lightPurple =
     Color.lightPurple
 
 
-{-| -}
+{-| The color purple
+-}
 purple : Color
 purple =
     Color.purple
 
 
-{-| -}
+{-| The color dark purple
+-}
 darkPurple : Color
 darkPurple =
     Color.darkPurple
 
 
-{-| -}
+{-| The color light red
+-}
 lightRed : Color
 lightRed =
     Color.lightRed
 
 
-{-| -}
+{-| The color red
+-}
 red : Color
 red =
     Color.red
 
 
-{-| -}
+{-| The color dark red
+-}
 darkRed : Color
 darkRed =
     Color.darkRed
 
 
-{-| -}
+{-| The color light grey
+-}
 lightGrey : Color
 lightGrey =
     Color.lightGray
 
 
-{-| -}
+{-| The color grey
+-}
 grey : Color
 grey =
     Color.gray
 
 
-{-| -}
+{-| The color dark grey
+-}
 darkGrey : Color
 darkGrey =
     Color.darkGray
 
 
-{-| -}
+{-| The color light charcoal
+-}
 lightCharcoal : Color
 lightCharcoal =
     Color.darkGray
 
 
-{-| -}
+{-| The color charcoal
+-}
 charcoal : Color
 charcoal =
     Color.darkGray
 
 
-{-| -}
+{-| The color darkCharcoal
+-}
 darkCharcoal : Color
 darkCharcoal =
     Color.darkGray
 
 
-{-| -}
+{-| The color white
+-}
 white : Color
 white =
     Color.white
 
 
-{-| -}
+{-| The color black
+-}
 black : Color
 black =
     Color.black
@@ -1021,6 +1156,8 @@ colorClamp number =
 -- RENDER
 
 
+{-| A scene is a collection of shapes, camera, lighting, and background
+-}
 type alias Scene coordinates =
     { camera : Camera3d Length.Meters coordinates
     , clipDepth : Length
@@ -1034,11 +1171,15 @@ type alias CastShadows =
     Bool
 
 
+{-| Different types of lighting that the scene can have
+-}
 type Lighting coordinates
     = Unlit
     | Sunny (Direction3d coordinates) CastShadows
 
 
+{-| Create a scene by giving it some shapes. Using other functions, you can set the camera and lighting.
+-}
 scene : List Shape -> Scene coordinates
 scene shapes =
     { camera =
@@ -1058,11 +1199,15 @@ scene shapes =
     }
 
 
+{-| Configure the camera for the scene
+-}
 withCamera : Camera3d Length.Meters coordinates -> Scene coordinates -> Scene coordinates
 withCamera camera s =
     { s | camera = camera }
 
 
+{-| Set the lighting for the scene
+-}
 withLighting : Lighting coordinates -> Scene coordinates -> Scene coordinates
 withLighting lighting s =
     { s | lighting = lighting }
