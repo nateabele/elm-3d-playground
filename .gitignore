@@ -2,3 +2,5 @@
 elm-stuff
 Game.elm
 index.html
+.parcel-cache/*
+dist/*

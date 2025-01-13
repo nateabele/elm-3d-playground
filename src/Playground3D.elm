@@ -20,7 +20,6 @@ module Playground3D exposing
     , darkPurple
     , darkRed
     , darkYellow
-    , fromColor
     , group
     , lightBlue
     , lightBrown
@@ -65,6 +64,8 @@ module Playground3D exposing
     , toX
     , toXY
     , toY
+    , glowing
+    , flat
     )
 
 {-| Contains most of the usual suspects from elm-playground, just 3D-ified.
@@ -90,7 +91,6 @@ module Playground3D exposing
 @docs darkPurple
 @docs darkRed
 @docs darkYellow
-@docs fromColor
 @docs group
 @docs lightBlue
 @docs lightBrown
@@ -135,6 +135,8 @@ module Playground3D exposing
 @docs toX
 @docs toXY
 @docs toY
+@docs glowing
+@docs flat
 
 -}
 
@@ -150,17 +152,20 @@ import Frame3d
 import Html
 import Json.Decode as D
 import Length exposing (Length)
+import Luminance
 import Pixels
 import Point3d
 import Quantity exposing (Quantity(..))
 import Scene3d
-import Scene3d.Material as Material exposing (Material)
+import Scene3d.Light as Light
+import Scene3d.Material as Material
 import Set
 import Sphere3d
 import Svg exposing (..)
 import Svg.Attributes exposing (..)
 import Task
 import Time
+import Vector3d
 import Viewpoint3d
 
 
@@ -192,24 +197,26 @@ type alias Computer =
     }
 
 
-
--- type alias Sceneription coordinates =
---     { camera : Camera3d Length.Meters coordinates
---     , clipDepth : Length
---     , dimensions : ( Int, Int )
---     , background : Scene3d.Background coordinates
---     , entities : List Shape
---     }
+type Material
+    = Flat Color
+    | Normal Color Float
+    | Shiny Color Float
+    | Glowing Color Float
 
 
 {-| Create a material from a color, that can be applied to a shape
 -}
-fromColor : Color -> Material coordinates { attributes | normals : () }
-fromColor color =
-    Material.nonmetal
-        { baseColor = color
-        , roughness = 0.4
-        }
+flat : Color -> Material
+flat =
+    Flat
+
+
+{-| Create a glowing material from a color and intensity value that can be applied to a shape.
+The intensity value controls how brightly the material glows.
+-}
+glowing : Color -> Float -> Material
+glowing =
+    Glowing
 
 
 
@@ -744,8 +751,8 @@ type Shape
 
 
 type Form
-    = Sphere Color Number
-    | Box Color Number Number Number
+    = Sphere Material Number
+    | Box Material Number Number Number
       -- | Cylinder Color Number Number
       -- | Cone Color Number Number
       -- | Polygon Color (List ( Number, Number ))
@@ -755,16 +762,16 @@ type Form
 
 {-| Create a sphere
 -}
-sphere : Color -> Number -> Shape
-sphere color radius =
-    Shape ( 0, 0, 0 ) 0 1 False (Sphere color radius)
+sphere : Material -> Number -> Shape
+sphere material radius =
+    Shape ( 0, 0, 0 ) 0 1 False (Sphere material radius)
 
 
 {-| Create a box, like a cube or other shape
 -}
-box : Color -> Number -> Number -> Number -> Shape
-box color width height depth =
-    Shape ( 0, 0, 0 ) 0 1 False (Box color width height depth)
+box : Material -> Number -> Number -> Number -> Shape
+box material width height depth =
+    Shape ( 0, 0, 0 ) 0 1 False (Box material width height depth)
 
 
 {-| Group shapes together.
@@ -1242,17 +1249,11 @@ render screen { camera, clipDepth, background, shapes, lighting } =
                 }
 
 
-
--- TODO try adding Svg.Lazy to renderShape
---
--- renderShape : Shape -> Svg msg
-
-
 renderShape : Shape -> Scene3d.Entity coordinates
 renderShape (Shape ( x, y, z ) angle s shadowed form) =
     case form of
-        Sphere color radius ->
-            renderSphere color radius x y z angle s
+        Sphere material radius ->
+            renderSphere material radius x y z angle s
 
         Box color width height depth ->
             renderBox color width height depth x y z angle s
@@ -1261,15 +1262,16 @@ renderShape (Shape ( x, y, z ) angle s shadowed form) =
             shapes
                 |> List.map renderShape
                 |> Scene3d.group
+                |> Scene3d.translateBy (Vector3d.centimeters x y z)
 
 
 
 -- RENDER CIRCLE AND OVAL
 
 
-renderSphere : Color -> Number -> Number -> Number -> Number -> Number -> Number -> Scene3d.Entity coordinates
-renderSphere color radius x y z _ s =
-    Scene3d.sphere (fromColor color) <|
+renderSphere : Material -> Number -> Number -> Number -> Number -> Number -> Number -> Scene3d.Entity coordinates
+renderSphere material radius x y z _ _ =
+    Scene3d.sphere (renderTexturedMaterial material) <|
         Sphere3d.withRadius (Length.centimeters radius) (Point3d.centimeters x y z)
 
 
@@ -1277,8 +1279,8 @@ renderSphere color radius x y z _ s =
 -- RENDER RECTANGLE AND IMAGE
 
 
-renderBox : Color -> Number -> Number -> Number -> Number -> Number -> Number -> Number -> Number -> Scene3d.Entity coordinates
-renderBox color width height depth x y z angle s =
+renderBox : Material -> Number -> Number -> Number -> Number -> Number -> Number -> Number -> Number -> Scene3d.Entity coordinates
+renderBox material width height depth x y z _ _ =
     let
         dimensions =
             ( Length.centimeters width
@@ -1286,9 +1288,44 @@ renderBox color width height depth x y z angle s =
             , Length.centimeters depth
             )
     in
-    Scene3d.block (fromColor color)
-        -- vv |> Scene3d.rotateAround (Axis3d.through (Point3d.centimeters x y z) (Vector3d.centimeters 0 0 1)) angle
+    Scene3d.block (renderSimpleMaterial material)
         (Block3d.centeredOn (Frame3d.atPoint (Point3d.centimeters x y z)) dimensions)
+
+
+
+-- RENDER MATERIALS
+
+
+renderSimpleMaterial : Material -> Material.Material coordinates { a | normals : () }
+renderSimpleMaterial material =
+    case material of
+        Flat color ->
+            Material.matte color
+
+        Normal color roughness ->
+            Material.nonmetal { baseColor = color, roughness = roughness }
+
+        Shiny color roughness ->
+            Material.metal { baseColor = color, roughness = roughness }
+
+        Glowing color brightness ->
+            Material.emissive (Light.color color) (Luminance.nits brightness)
+
+
+renderTexturedMaterial : Material -> Material.Material coordinates { a | normals : () }
+renderTexturedMaterial material =
+    case material of
+        Flat color ->
+            Material.matte color
+
+        Normal color roughness ->
+            Material.nonmetal { baseColor = color, roughness = roughness }
+
+        Shiny color roughness ->
+            Material.metal { baseColor = color, roughness = roughness }
+
+        Glowing color brightness ->
+            Material.emissive (Light.color color) (Luminance.nits (brightness / 100 * 50000))
 
 
 
