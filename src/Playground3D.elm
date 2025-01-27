@@ -57,6 +57,7 @@ module Playground3D exposing
     , Computer
     , Keyboard
     , Mouse
+    , toMilliseconds
     , Screen
     , Time
     , Number
@@ -128,6 +129,7 @@ module Playground3D exposing
 @docs Computer
 @docs Keyboard
 @docs Mouse
+@docs toMilliseconds
 @docs Screen
 @docs Time
 @docs Number
@@ -217,6 +219,12 @@ The intensity value controls how brightly the material glows.
 glowing : Color -> Float -> Material
 glowing =
     Glowing
+
+
+{-| -}
+normal : Color -> Float -> Material
+normal =
+    Normal
 
 
 
@@ -551,6 +559,11 @@ initialComputer =
     , screen = toScreen 600 600
     , time = Time.millisToPosix 0
     }
+
+
+toMilliseconds : Time.Posix -> Int
+toMilliseconds time =
+    Time.posixToMillis time
 
 
 
