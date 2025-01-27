@@ -561,6 +561,9 @@ initialComputer =
     }
 
 
+{-| Get the current clock time (i.e. `computer.time`) by converting a `Time.Posix` to an `Int`
+in milliseconds.
+-}
 toMilliseconds : Time.Posix -> Int
 toMilliseconds time =
     Time.posixToMillis time
